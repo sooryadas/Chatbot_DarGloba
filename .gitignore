@@ -15,3 +15,4 @@ deploy_instructions.md
 
 main.py
 .env.example
+/darglobal-upload.tar.gz

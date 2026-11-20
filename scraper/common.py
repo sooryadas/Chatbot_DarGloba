@@ -169,58 +169,6 @@ def fetch_html(
     return response.url, response.text
 
 
-def fetch_html_playwright(
-    url: str,
-    *,
-    timeout: int = DEFAULT_TIMEOUT_SECONDS,
-    min_interval_seconds: float = DEFAULT_MIN_REQUEST_INTERVAL_SECONDS,
-) -> tuple[str, str]:
-    """Render one permitted page in headless Chromium and return its HTML.
-
-    This is intended as a fallback for pages whose useful content is inserted
-    by client-side JavaScript. Playwright is imported lazily so static pages do
-    not require a browser session.
-    """
-    normalized_url = canonicalize_url(url)
-    parts = urlsplit(normalized_url)
-    if not is_allowed_by_robots(normalized_url, timeout=timeout):
-        raise ScrapingError(f"robots.txt disallows collection of {normalized_url}")
-
-    _wait_for_host(parts.netloc, max(0.0, min_interval_seconds))
-    try:
-        from playwright.sync_api import Error as PlaywrightError
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True, args=["--no-sandbox"])
-            try:
-                page = browser.new_page(user_agent=USER_AGENT)
-                response = page.goto(
-                    normalized_url,
-                    wait_until="domcontentloaded",
-                    timeout=timeout * 1000,
-                )
-                if response is not None and response.status >= 400:
-                    raise ScrapingError(
-                        f"Page returned HTTP {response.status}: {normalized_url}"
-                    )
-                page.locator("body").wait_for(state="attached", timeout=timeout * 1000)
-                page.wait_for_timeout(1500)
-                return page.url, page.content()
-            finally:
-                browser.close()
-    except ImportError as exc:
-        raise ScrapingError(
-            "Playwright is required for this JavaScript-rendered page; install the "
-            "project requirements and Chromium browser."
-        ) from exc
-    except ScrapingError:
-        raise
-    except PlaywrightError as exc:
-        LOGGER.warning("Playwright render failed for %s: %s", normalized_url, exc)
-        raise ScrapingError(f"Could not render {normalized_url}: {exc}") from exc
-
-
 def html_to_text(html: str) -> tuple[str, str]:
     """Extract a page title and readable text, dropping non-content elements."""
     soup = BeautifulSoup(html, "html.parser")
