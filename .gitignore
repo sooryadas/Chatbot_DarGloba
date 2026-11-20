@@ -1,0 +1,16 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+data/raw/*
+!data/raw/.gitkeep
+data/chroma/*
+!data/chroma/.gitkeep
+
+AGENTS.MD
+deploy_instructions.md
+
+main.py
