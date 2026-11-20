@@ -14,3 +14,4 @@ AGENTS.MD
 deploy_instructions.md
 
 main.py
+.env.example
