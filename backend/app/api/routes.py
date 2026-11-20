@@ -4,7 +4,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 
+from app.core.config import settings
 from app.schemas.chat import ChatRequest, ChatResponse, HealthResponse
+from app.services.conversation import get_conversation_reply
 from app.services.answer import AnswerGenerationError, generate_grounded_answer
 from app.services.retrieval import RetrievalError, retrieve_documents
 
@@ -22,7 +24,16 @@ def health_check() -> HealthResponse:
 def chat(request: ChatRequest) -> ChatResponse:
     """Retrieve source material and answer the user's latest question."""
     history = request.history[-12:]
-    query_parts = [message.content for message in history[-4:] if message.role == "user"]
+    history_data = [message.model_dump() for message in history]
+    reply = get_conversation_reply(request.question, history_data, settings.openrouter_model)
+    if reply is not None:
+        return ChatResponse(answer=reply, sources=[])
+
+    query_parts = [
+        message.content for message in history[-4:]
+        if message.role == "user"
+        and get_conversation_reply(message.content, [], settings.openrouter_model) is None
+    ]
     query_parts.append(request.question)
     try:
         documents = retrieve_documents("\n".join(query_parts))
